@@ -1,0 +1,9 @@
+services:
+  - type: web
+    name: Goli-music-bot
+    runtime: python
+    buildCommand: pip install -r requirements.txt
+    startCommand: python main.py
+    buildpacks:
+      - url: https://github.com/jonathanong/heroku-buildpack-ffmpeg-latest.git
+      - url: render/python
