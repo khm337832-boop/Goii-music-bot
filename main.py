@@ -8,13 +8,13 @@ from static_ffmpeg import add_paths
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import Application, CommandHandler, MessageHandler, CallbackQueryHandler, filters, ContextTypes
 
-# FFmpeg ကို Code ထဲကနေ တိုက်ရိုက် လမ်းကြောင်းဖွင့်ပေးခြင်း
+# FFmpeg လမ်းကြောင်းကို အလိုအလျောက် သတ်မှတ်ပေးခြင်း
 add_paths()
 
-# --- Web Server (Keeping Bot Alive) ---
+# --- Web Server (Render မှာ Bot မသေအောင် ထိန်းပေးရန်) ---
 app = Flask('')
 @app.route('/')
-def home(): return "Bot is Online and Ready!"
+def home(): return "Bot is Online! ❤️"
 
 def run():
     port = int(os.environ.get("PORT", 8080))
@@ -25,11 +25,11 @@ def keep_alive():
     t.daemon = True
     t.start()
 
-# --- Config ---
-TOKEN = os.getenv("BOT_TOKEN")
+# --- သင်ပေးထားတဲ့ Bot Token ကို ဒီမှာ အသေထည့်ထားပါတယ် ---
+TOKEN = "8750923349:AAHsRNgP_f-o1p5-fXnTjkY0s2w8-6wh41U"
 CHANNEL_URL = "https://t.me/music002234"
 
-# --- Button & Download Handler ---
+# --- သီချင်းဒေါင်းလုဒ်ဆွဲပြီး Audio ပြောင်းပေးမည့်စနစ် ---
 async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     await query.answer()
@@ -40,7 +40,7 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     elif query.data.startswith('dl_'):
         vid = query.data.split('_')[1]
         url = f"https://www.youtube.com/watch?v={vid}"
-        status_msg = await query.message.reply_text("⏳ သီချင်းကို Audio ပြောင်းပြီး ပို့ပေးနေပါတယ်... ခဏစောင့်ပါနော်။ 🎧")
+        status_msg = await query.message.reply_text("⏳ သီချင်းကို Audio (MP3) ပြောင်းပြီး ပို့ပေးနေပါတယ်... ခဏစောင့်ပါနော်။ 🎧")
         
         try:
             path = f"downloads/{vid}.mp3"
@@ -69,9 +69,9 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
         except Exception as e:
             logging.error(f"Error: {e}")
-            await status_msg.edit_text("❌ သီချင်းပို့ရတာ အဆင်မပြေပါ။ Token သို့မဟုတ် Internet ပြဿနာ ဖြစ်နိုင်ပါတယ်။")
+            await status_msg.edit_text("❌ သီချင်းပို့ရတာ အဆင်မပြေပါ။ ခဏကြာမှ ပြန်ကြိုးစားကြည့်ပါ။")
 
-# --- Search Handler ---
+# --- သီချင်းရှာဖွေပေးမည့်စနစ် ---
 async def search_song(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_query = update.message.text
     search_msg = await update.message.reply_text("🔎 ရှာဖွေနေပါတယ်...")
@@ -91,4 +91,31 @@ async def search_song(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 title = entry.get('title')
                 vid = entry.get('id')
                 text += f"{i+1}. {title}\n"
-                keyboard.append([InlineKeyboardButton(f"{i+1}. {title[:35]}...", callback
+                keyboard.append([InlineKeyboardButton(f"{i+1}. {title[:35]}...", callback_data=f"dl_{vid}")])
+            
+            await search_msg.delete()
+            await update.message.reply_text(text, reply_markup=InlineKeyboardMarkup(keyboard))
+    except Exception:
+        await search_msg.edit_text("❌ ရှာဖွေမှု အဆင်မပြေပါ။")
+
+# --- Bot ကို စတင်ခိုင်းသည့် Command ---
+async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    keyboard = [[InlineKeyboardButton("Join Channel 📢", url=CHANNEL_URL)],
+                [InlineKeyboardButton("Join ပြီးပါပြီ ✅", callback_data='check_join')]]
+    await update.message.reply_text("မင်္ဂလာပါ! သီချင်းနားထောင်ဖို့ အောက်က Channel ကို အရင် Join ပေးပါနော်။ ❤️", 
+                                  reply_markup=InlineKeyboardMarkup(keyboard))
+
+def main():
+    if not os.path.exists('downloads'): os.makedirs('downloads')
+    keep_alive()
+    
+    app_bot = Application.builder().token(TOKEN).build()
+    app_bot.add_handler(CommandHandler("start", start))
+    app_bot.add_handler(CallbackQueryHandler(button_handler))
+    app_bot.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, search_song))
+    
+    print("Bot is starting with hardcoded token...")
+    app_bot.run_polling()
+
+if __name__ == '__main__':
+    main()
