@@ -1,3 +1,4 @@
+TOKEN = os.getenv("BOT_TOKEN")
 import os
 import logging
 import yt_dlp
