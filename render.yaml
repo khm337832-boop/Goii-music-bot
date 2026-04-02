@@ -2,13 +2,12 @@ services:
   - type: web
     name: Goli-music-bot
     runtime: python
+    plan: free
     buildCommand: pip install -r requirements.txt
     startCommand: python main.py
     envVars:
       - key: BOT_TOKEN
-        fromService:
-          name: Goli-music-bot
-          type: web
+        sync: false
     buildpacks:
       - url: https://github.com/jonathanong/heroku-buildpack-ffmpeg-latest.git
       - url: render/python
