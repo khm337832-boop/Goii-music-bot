@@ -4,13 +4,17 @@ import yt_dlp
 import asyncio
 from flask import Flask
 from threading import Thread
+from static_ffmpeg import add_paths
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import Application, CommandHandler, MessageHandler, CallbackQueryHandler, filters, ContextTypes
 
-# Web Server for Render
+# FFmpeg ကို အလိုအလျောက် လမ်းကြောင်းပြပေးခြင်း
+add_paths()
+
+# Web Server
 app = Flask('')
 @app.route('/')
-def home(): return "Bot Online"
+def home(): return "Bot is Online"
 
 def run():
     port = int(os.environ.get("PORT", 8080))
@@ -43,9 +47,7 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 'format': 'bestaudio/best',
                 'outtmpl': f'downloads/{vid}.%(ext)s',
                 'postprocessors': [{'key': 'FFmpegExtractAudio','preferredcodec': 'mp3','preferredquality': '192'}],
-                'quiet': True,
-                'no_warnings': True,
-                'prefer_ffmpeg': True  # FFmpeg ကို အတင်းသုံးခိုင်းမယ်
+                'quiet': True
             }
             with yt_dlp.YoutubeDL(ydl_opts) as ydl:
                 await asyncio.to_thread(ydl.extract_info, url, download=True)
@@ -53,26 +55,23 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
                     await context.bot.send_audio(chat_id=update.effective_chat.id, audio=audio)
                 if os.path.exists(path): os.remove(path)
                 await status_msg.delete()
-        except Exception as e:
-            await status_msg.edit_text("❌ သီချင်းပို့မရပါ (FFmpeg လိုအပ်နေပါသည်)။")
+        except Exception:
+            await status_msg.edit_text("❌ သီချင်းပို့မရပါ။ Token ပြန်စစ်ပေးပါ။")
 
-async def search_song(update: Update, context: ContextTypes.DEFAULT_TYPE):
+async def search_song(update: Update, context: Update):
     user_query = update.message.text
     search_msg = await update.message.reply_text("🔎 ရှာဖွေနေပါတယ်...")
     try:
         with yt_dlp.YoutubeDL({'format': 'bestaudio/best', 'quiet': True, 'extract_flat': True}) as ydl:
             results = await asyncio.to_thread(ydl.extract_info, f"ytsearch5:{user_query}", download=False)
             entries = results.get('entries', [])
-            if not entries:
-                await search_msg.edit_text("⚠️ ရှာမတွေ့ပါ။")
-                return
             keyboard = []
             for entry in entries:
                 keyboard.append([InlineKeyboardButton(f"🎵 {entry.get('title')[:30]}", callback_data=f"dl_{entry.get('id')}")])
             await search_msg.delete()
             await update.message.reply_text("ရလဒ်များ -", reply_markup=InlineKeyboardMarkup(keyboard))
     except Exception:
-        await search_msg.edit_text("❌ အမှားအယွင်းရှိနေပါသည်။")
+        await search_msg.edit_text("❌ ရှာမတွေ့ပါ။")
 
 def main():
     if not os.path.exists('downloads'): os.makedirs('downloads')
@@ -86,4 +85,3 @@ def main():
 
 if __name__ == '__main__':
     main()
-
