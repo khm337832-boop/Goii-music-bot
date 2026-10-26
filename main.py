@@ -17,9 +17,17 @@ import re
 import time
 import uuid
 from threading import Thread
+from urllib.parse import quote
 
 from flask import Flask, jsonify
-from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update
+from telegram import (
+    BotCommand,
+    InlineKeyboardButton,
+    InlineKeyboardMarkup,
+    KeyboardButton,
+    ReplyKeyboardMarkup,
+    Update,
+)
 from telegram.constants import ChatAction
 from telegram.ext import (
     Application,
@@ -31,6 +39,14 @@ from telegram.ext import (
 )
 
 from ai_brain import MusicAI, build_youtube_query, clean_query
+from buttons import (
+    BOT_COMMANDS,
+    CATEGORIES,
+    REPLY_ROWS,
+    lookup_quick_search,
+    quick_search_callback,
+    reply_action,
+)
 from config import Settings
 from icons import (
     I,
@@ -41,6 +57,8 @@ from icons import (
     error_text,
     esc,
     help_text,
+    keyboard_text,
+    menu_text,
     no_results_text,
     prompt_text,
     recommend_text,
@@ -195,16 +213,116 @@ async def safe_edit(message, text: str, **kwargs) -> None:
 # ---------------------------------------------------------------------------
 
 def main_menu() -> InlineKeyboardMarkup:
-    return InlineKeyboardMarkup([
+    rows = [
         [
             InlineKeyboardButton(f"{I.SEARCH} သီချင်းရှာမယ်", callback_data="act_search"),
-            InlineKeyboardButton(f"{I.ROBOT} AI ကို မေးမယ်", callback_data="act_ai"),
+            InlineKeyboardButton(f"{I.FIRE} ပေါ်ပြူလာ", callback_data="act_popular"),
         ],
         [
-            InlineKeyboardButton(f"{I.INFO} အကူအညီ", callback_data="act_help"),
-            InlineKeyboardButton(f"{I.BRAIN} AI အခြေအနေ", callback_data="act_brain"),
+            InlineKeyboardButton(f"{I.RAINBOW} Mood ရွေးမယ်", callback_data="act_mood"),
+            InlineKeyboardButton(f"{I.MIC} အဆိုတော်များ", callback_data="act_artists"),
         ],
-        [InlineKeyboardButton(f"{I.LINK} Bot link ပေးပါ", callback_data="act_link")],
+        [
+            InlineKeyboardButton(f"{I.GUITAR} Genre", callback_data="act_genre"),
+            InlineKeyboardButton(f"{I.GLOBE} ဘာသာစကား", callback_data="act_browse"),
+        ],
+        [
+            InlineKeyboardButton(f"{I.ROBOT} AI ကို မေးမယ်", callback_data="act_ai"),
+            InlineKeyboardButton(f"{I.INFO} အကူအညီ", callback_data="act_help"),
+        ],
+        [
+            InlineKeyboardButton(f"{I.BRAIN} AI အခြေအနေ", callback_data="act_brain"),
+            InlineKeyboardButton(f"{I.LINK} Bot link ပေးပါ", callback_data="act_link"),
+        ],
+        [InlineKeyboardButton(f"{I.KEYBOARD} အောက်ခလုတ် ဖွင့်မယ်", callback_data="act_keyboard")],
+    ]
+    link = SETTINGS.bot_link
+    if link:  # let users forward the bot to friends with one tap
+        share = (
+            "https://t.me/share/url?url=" + quote(link, safe="")
+            + "&text=" + quote("🎧 Goii Music Bot — သီချင်းရှာပြီး MP3 ပို့ပေးတဲ့ Bot လေး စမ်းကြည့်ပါ 🎵")
+        )
+        rows.append([InlineKeyboardButton(f"{I.SHARE} သူငယ်ချင်းတွေကို မျှဝေမယ်", url=share)])
+    return InlineKeyboardMarkup(rows)
+
+
+def reply_keyboard() -> ReplyKeyboardMarkup:
+    """Persistent bottom keyboard (⌨️) — labels come from ``buttons.py``.
+
+    Telegram sends the tapped label as a normal message, which
+    :func:`handle_text` routes via :func:`buttons.reply_action`.
+    """
+    return ReplyKeyboardMarkup(
+        [[KeyboardButton(label) for label in row] for row in REPLY_ROWS],
+        resize_keyboard=True,
+        is_persistent=True,
+        input_field_placeholder="သီချင်းအမည် ရိုက်ပါ (သို့) ခလုတ်နှိပ်ပါ 🎵",
+    )
+
+
+#: Inline-menu callback -> category name in ``buttons.CATEGORIES``.
+CATEGORY_CALLBACKS = {
+    "act_popular": "popular",
+    "act_mood": "mood",
+    "act_genre": "genre",
+    "act_browse": "browse",
+    "act_artists": "artists",
+    "act_artists_mm": "artists_mm",
+    "act_artists_int": "artists_int",
+}
+
+
+def category_keyboard(category: str) -> InlineKeyboardMarkup:
+    """Two-column grid of one-tap quick-search buttons for a category."""
+    items = CATEGORIES.get(category, ())
+    rows = [
+        [
+            InlineKeyboardButton(item.label, callback_data=quick_search_callback(category, item.key))
+            for item in items[start:start + 2]
+        ]
+        for start in range(0, len(items), 2)
+    ]
+    if category in {"artists_mm", "artists_int"}:
+        rows.append([
+            InlineKeyboardButton(f"{I.BACK} အဆိုတော်မီနူး", callback_data="act_artists"),
+            InlineKeyboardButton(f"{I.HOME} မီနူး", callback_data="act_menu"),
+        ])
+    else:
+        rows.append([
+            InlineKeyboardButton(f"{I.HOME} မီနူး ပြန်သွားမယ်", callback_data="act_menu"),
+            InlineKeyboardButton(f"{I.SEARCH} ကိုယ်တိုင်ရှာမယ်", callback_data="act_search"),
+        ])
+    return InlineKeyboardMarkup(rows)
+
+
+def artists_hub_keyboard() -> InlineKeyboardMarkup:
+    """🇲🇲 / 🌍 chooser shown before the actual artist grids."""
+    return InlineKeyboardMarkup([
+        [InlineKeyboardButton(f"{I.FLAG_MM} မြန်မာ အဆိုတော်များ", callback_data="act_artists_mm")],
+        [InlineKeyboardButton(f"{I.GLOBE} International Artists", callback_data="act_artists_int")],
+        [InlineKeyboardButton(f"{I.BACK} မီနူး ပြန်သွားမယ်", callback_data="act_menu")],
+    ])
+
+
+def category_payload(category: str) -> tuple[str, InlineKeyboardMarkup]:
+    """(heading text, keyboard) for a category menu."""
+    if category == "artists":
+        return menu_text("artists"), artists_hub_keyboard()
+    return menu_text(category), category_keyboard(category)
+
+
+def after_download_keyboard() -> InlineKeyboardMarkup:
+    """Buttons attached under every delivered MP3."""
+    return InlineKeyboardMarkup([
+        [
+            InlineKeyboardButton(f"{I.REFRESH} ဒီလို နောက်တစ်ပုဒ်", callback_data="act_more_like"),
+            InlineKeyboardButton(f"{I.SEARCH} အသစ်ရှာမယ်", callback_data="act_search"),
+        ],
+        [
+            InlineKeyboardButton(f"{I.FIRE} ပေါ်ပြူလာ", callback_data="act_popular"),
+            InlineKeyboardButton(f"{I.RAINBOW} Mood", callback_data="act_mood"),
+        ],
+        [InlineKeyboardButton(f"{I.HOME} မီနူး ပြန်သွားမယ်", callback_data="act_menu")],
     ])
 
 
@@ -223,6 +341,10 @@ def results_keyboard(context, tracks, query: str, page: int) -> InlineKeyboardMa
     rows.append([
         InlineKeyboardButton(f"{I.REFRESH} နောက်ထပ် ရလဒ်များ", callback_data=f"sq_{token}_{page + 1}"),
         InlineKeyboardButton(f"{I.ROBOT} ဒီအကြောင်း မေးမယ်", callback_data=f"ask_{token}"),
+    ])
+    rows.append([
+        InlineKeyboardButton(f"{I.FIRE} ပေါ်ပြူလာ", callback_data="act_popular"),
+        InlineKeyboardButton(f"{I.HOME} မီနူး", callback_data="act_menu"),
     ])
     return InlineKeyboardMarkup(rows)
 
@@ -257,6 +379,10 @@ def answer_keyboard(context, result) -> InlineKeyboardMarkup:
 
 async def show_results(message, context, query: str, page: int = 0) -> None:
     """Search YouTube and replace `message` with a nicely formatted result list."""
+    # Remembered so the "🔄 ဒီလို နောက်တစ်ပုဒ်" button under a downloaded
+    # MP3 can fetch the next page of the same search.
+    context.chat_data["last_query"] = query
+    context.chat_data["last_page"] = page
     yt_query = build_youtube_query(query, page)
     await safe_edit(message, searching_text(query), parse_mode="HTML")
 
@@ -313,10 +439,54 @@ async def route_result(message, context, result, original: str) -> None:
 # Command / message handlers
 # ---------------------------------------------------------------------------
 
-async def cmd_start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    await update.message.reply_text(
+async def send_welcome(message, *, with_keyboard: bool = False) -> None:
+    """Welcome card + inline main menu; optionally (re)install the ⌨️ keyboard.
+
+    A Telegram message can carry only one ``reply_markup``, so the persistent
+    bottom keyboard arrives as its own short second message.
+    """
+    await message.reply_text(
         welcome_text(), parse_mode="HTML", reply_markup=main_menu(), disable_web_page_preview=True
     )
+    if with_keyboard:
+        await message.reply_text(
+            keyboard_text(), parse_mode="HTML", reply_markup=reply_keyboard(),
+            disable_web_page_preview=True,
+        )
+
+
+async def cmd_start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    await send_welcome(update.message, with_keyboard=True)
+
+
+async def cmd_menu(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    await send_welcome(update.message)
+
+
+async def cmd_keyboard(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Show the persistent bottom button keyboard again."""
+    await update.message.reply_text(
+        keyboard_text(), parse_mode="HTML", reply_markup=reply_keyboard(),
+        disable_web_page_preview=True,
+    )
+
+
+async def send_category(message, category: str) -> None:
+    """Send a category button menu as a new message."""
+    text, keyboard = category_payload(category)
+    await message.reply_text(
+        text, parse_mode="HTML", reply_markup=keyboard, disable_web_page_preview=True
+    )
+
+
+def category_command(category: str):
+    """Build a /popular, /mood, ... handler that opens a category menu."""
+
+    async def handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+        await send_category(update.message, category)
+
+    handler.__name__ = f"cmd_{category}"
+    return handler
 
 
 async def cmd_help(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -333,8 +503,8 @@ async def cmd_brain(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     )
 
 
-async def cmd_link(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    """Share the public t.me link for this bot."""
+def link_payload() -> tuple[str, InlineKeyboardMarkup]:
+    """(text, keyboard) for the public t.me link card (/link and 🔗 button)."""
     link = SETTINGS.bot_link
     if link:
         text = (
@@ -347,17 +517,22 @@ async def cmd_link(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
             InlineKeyboardButton(f"{I.BOT} Bot ကို ဖွင့်မယ်", url=link),
             InlineKeyboardButton(f"{I.BACK} မီနူး", callback_data="act_menu"),
         ]])
-    else:
-        hint = f" <code>{SETTINGS.bot_id}</code>" if SETTINGS.bot_id else ""
-        text = (
-            f"{I.WARN} <b>Bot link မရသေးပါဘူး</b>\n"
-            f"{I.SOFT_DIVIDER}\n"
-            f"Bot link က <code>https://t.me/&lt;username&gt;</code> ပုံစံဖြစ်ပါတယ်။ "
-            f"@BotFather → <code>/mybots</code> → ကိုယ့် bot → <b>Bot Settings → Username</b> "
-            f"ထဲက username ကို <code>BOT_USERNAME</code> အနေနဲ့ ထည့်ပေးပါနော် 🔑\n"
-            f"Bot ID:{hint}"
-        )
-        keyboard = back_keyboard()
+        return text, keyboard
+    hint = f" <code>{SETTINGS.bot_id}</code>" if SETTINGS.bot_id else ""
+    text = (
+        f"{I.WARN} <b>Bot link မရသေးပါဘူး</b>\n"
+        f"{I.SOFT_DIVIDER}\n"
+        f"Bot link က <code>https://t.me/&lt;username&gt;</code> ပုံစံဖြစ်ပါတယ်။ "
+        f"@BotFather → <code>/mybots</code> → ကိုယ့် bot → <b>Bot Settings → Username</b> "
+        f"ထဲက username ကို <code>BOT_USERNAME</code> အနေနဲ့ ထည့်ပေးပါနော် 🔑\n"
+        f"Bot ID:{hint}"
+    )
+    return text, back_keyboard()
+
+
+async def cmd_link(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Share the public t.me link for this bot."""
+    text, keyboard = link_payload()
     await update.message.reply_text(
         text, parse_mode="HTML", reply_markup=keyboard, disable_web_page_preview=True
     )
@@ -393,11 +568,38 @@ async def cmd_search(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None
     await show_results(thinking, context, clean_query(query) or query)
 
 
+async def handle_reply_action(update: Update, context: ContextTypes.DEFAULT_TYPE, action: str) -> None:
+    """Route a ⌨️ bottom-keyboard tap (it arrives as the button's label text)."""
+    message = update.message
+    if action in CATEGORIES or action == "artists":
+        await send_category(message, action)
+    elif action == "search":
+        await message.reply_text(
+            prompt_text("search"), parse_mode="HTML", reply_markup=back_keyboard(),
+            disable_web_page_preview=True,
+        )
+    elif action == "ai":
+        await message.reply_text(
+            prompt_text("ai"), parse_mode="HTML", reply_markup=back_keyboard(),
+            disable_web_page_preview=True,
+        )
+    elif action == "help":
+        await cmd_help(update, context)
+    elif action == "menu":
+        await send_welcome(message)
+    else:  # pragma: no cover - REPLY_ACTIONS only yields the actions above
+        await send_welcome(message)
+
+
 async def handle_text(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    """Every plain message goes through the AI brain first."""
+    """Bottom-keyboard taps are routed instantly; everything else hits the AI."""
     text = (update.message.text or "").strip()
     if not text:
         await update.message.reply_text(error_text("empty"), parse_mode="HTML")
+        return
+    action = reply_action(text)
+    if action:
+        await handle_reply_action(update, context, action)
         return
     thinking = await update.message.reply_text(thinking_text(), parse_mode="HTML")
     result = await brain.think(text, get_history(context))
@@ -412,6 +614,19 @@ async def on_button(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
 
     if data.startswith("dl_"):
         await handle_download(callback, context)
+        return
+
+    if data.startswith("qs_"):  # one-tap category button (mood / artist / ...)
+        item = lookup_quick_search(data)
+        if not item:
+            await safe_edit(message, error_text("generic", "ခလုတ်က သက်တမ်းကုန်သွားပါပြီ။"), parse_mode="HTML", reply_markup=back_keyboard())
+            return
+        await show_results(message, context, item.query)
+        return
+
+    if data in CATEGORY_CALLBACKS:  # open a category button menu
+        text, keyboard = category_payload(CATEGORY_CALLBACKS[data])
+        await safe_edit(message, text, parse_mode="HTML", reply_markup=keyboard, disable_web_page_preview=True)
         return
 
     if data.startswith("sr_") or data.startswith("ask_"):
@@ -458,28 +673,25 @@ async def on_button(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     elif data == "act_ai":
         await safe_edit(message, prompt_text("ai"), parse_mode="HTML", reply_markup=back_keyboard(), disable_web_page_preview=True)
     elif data == "act_link":
-        link = SETTINGS.bot_link
-        if link:
-            text = (
-                f"{I.LINK} <b>Bot link</b> {I.HEADPHONES}\n"
-                f"{I.SOFT_DIVIDER}\n"
-                f"🔗 <code>{esc(link)}</code>\n\n"
-                f"မျှဝေလို့ရပါတယ်နော် 💌"
-            )
-            kb = InlineKeyboardMarkup([[
-                InlineKeyboardButton(f"{I.BOT} Bot ကို ဖွင့်မယ်", url=link),
-                InlineKeyboardButton(f"{I.BACK} မီနူး", callback_data="act_menu"),
-            ]])
-        else:
-            text = (
-                f"{I.WARN} <b>BOT_USERNAME မသတ်မှတ်ထားသေးပါဘူး</b>\n"
-                f"{I.SOFT_DIVIDER}\n"
-                f"@BotFather → <code>/mybots</code> → <b>Bot Settings → Username</b> ကနေ "
-                f"username ယူပြီး Render မှာ <code>BOT_USERNAME</code> ထည့်ပေးပါနော် 🔑\n"
-                f"ပြီးရင် link က <code>https://t.me/&lt;username&gt;</code> ဖြစ်ပါလိမ့်မယ်။"
-            )
-            kb = back_keyboard()
+        text, kb = link_payload()
         await safe_edit(message, text, parse_mode="HTML", reply_markup=kb, disable_web_page_preview=True)
+    elif data == "act_keyboard":
+        # A reply keyboard cannot be attached by editing — send a new message.
+        await message.reply_text(
+            keyboard_text(), parse_mode="HTML", reply_markup=reply_keyboard(),
+            disable_web_page_preview=True,
+        )
+    elif data == "act_more_like":
+        # "🔄 ဒီလို နောက်တစ်ပုဒ်" under a downloaded MP3: next page of the
+        # same search. A fresh status message is used because the button may
+        # sit on an audio message, which cannot be edited into a result list.
+        last_query = context.chat_data.get("last_query")
+        if last_query:
+            status = await message.reply_text(thinking_text(), parse_mode="HTML")
+            await show_results(status, context, last_query, int(context.chat_data.get("last_page", 0)) + 1)
+        else:
+            text, kb = category_payload("popular")
+            await safe_edit(message, text, parse_mode="HTML", reply_markup=kb, disable_web_page_preview=True)
 
 
 async def handle_download(callback, context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -509,6 +721,7 @@ async def handle_download(callback, context: ContextTypes.DEFAULT_TYPE) -> None:
                 "caption": caption_text(meta["title"], meta["performer"], meta["duration"]),
                 "parse_mode": "HTML",
                 "reply_to_message_id": callback.message.message_id,
+                "reply_markup": after_download_keyboard(),
             }
             if meta["duration"] > 0:
                 kwargs["duration"] = meta["duration"]
@@ -528,6 +741,17 @@ async def on_error(update: object, context: ContextTypes.DEFAULT_TYPE) -> None:
 
 # ---------------------------------------------------------------------------
 
+async def post_init(application: Application) -> None:
+    """Register the "/" command-menu button next to the message input."""
+    try:
+        await application.bot.set_my_commands(
+            [BotCommand(command, description) for command, description in BOT_COMMANDS]
+        )
+        LOG.info("📋 Bot command menu registered (%d commands)", len(BOT_COMMANDS))
+    except Exception as exc:  # the bot still works without the menu button
+        LOG.warning("set_my_commands failed: %s", exc)
+
+
 def main() -> None:
     if not SETTINGS.bot_token:
         raise SystemExit(
@@ -543,14 +767,22 @@ def main() -> None:
         .connect_timeout(30)
         .read_timeout(30)
         .write_timeout(60)
+        .post_init(post_init)
         .build()
     )
     application.add_handler(CommandHandler(["start", "home"], cmd_start))
+    application.add_handler(CommandHandler("menu", cmd_menu))
     application.add_handler(CommandHandler("help", cmd_help))
     application.add_handler(CommandHandler("ai", cmd_ai))
     application.add_handler(CommandHandler("search", cmd_search))
     application.add_handler(CommandHandler("brain", cmd_brain))
     application.add_handler(CommandHandler("link", cmd_link))
+    application.add_handler(CommandHandler("keyboard", cmd_keyboard))
+    application.add_handler(CommandHandler("popular", category_command("popular")))
+    application.add_handler(CommandHandler(["mood", "moods"], category_command("mood")))
+    application.add_handler(CommandHandler(["genre", "genres"], category_command("genre")))
+    application.add_handler(CommandHandler("artists", category_command("artists")))
+    application.add_handler(CommandHandler("browse", category_command("browse")))
     application.add_handler(CallbackQueryHandler(on_button))
     application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_text))
     application.add_error_handler(on_error)

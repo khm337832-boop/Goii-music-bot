@@ -46,6 +46,14 @@ class I:
     PLAY = "▶️"
     DOWN = "👇"
     RAINBOW = "🌈"
+    GUITAR = "🎸"
+    HOME = "🏠"
+    KEYBOARD = "⌨️"
+    GLOBE = "🌍"
+    FOLDER = "🗂️"
+    CHART = "📈"
+    FLAG_MM = "🇲🇲"
+    SHARE = "📤"
     DIVIDER = "━" * 18
     SOFT_DIVIDER = "─" * 14
 
@@ -127,6 +135,8 @@ def welcome_text() -> str:
         f"{I.MUSIC} သီချင်းအမည် / အဆိုတော်အမည် ရိုက်ပေးပါ\n"
         f"{I.RAINBOW} စိတ်ခံစားချက်လေး ပြောရင်လည်း ညွှန်းပေးပါ့မယ်\n"
         f"{I.ROBOT} အဆိုတော်အကြောင်း မေးချင်ရင်လည်း မေးလို့ရပါတယ်\n"
+        f"{I.KEYBOARD} စာရိုက်စရာမလိုဘဲ <b>ခလုတ်လေးတွေ နှိပ်ပြီး</b> လည်း "
+        f"သုံးနိုင်ပါတယ် {I.DOWN}\n"
         f"{I.SOFT_DIVIDER}\n"
         f"<i>ဥပမာ · “စိတ်ပျက်နေတယ် သီချင်းလေးညွှန်းပေးပါ”</i>"
     )
@@ -137,12 +147,21 @@ def help_text(provider: str) -> str:
         f"{I.INFO} <b>အကူအညီ / Commands</b>\n"
         f"{I.DIVIDER}\n"
         f"{I.PENCIL} စာရိုက်ရုံနဲ့ သီချင်းရှာပေးပါတယ်\n"
+        f"{I.KEYBOARD} အောက်က <b>ခလုတ်လေးတွေ</b> နှိပ်ရုံနဲ့လည်း ရပါတယ်\n"
         f"{I.ROBOT} <code>/ai မေးခွန်း</code> · AI ကို တိုက်ရိုက်မေးမယ်\n"
         f"{I.SEARCH} <code>/search သီချင်းအမည်</code> · တိုက်ရိုက်ရှာမယ်\n"
+        f"{I.FIRE} <code>/popular</code> · ပေါ်ပြူလာ သီချင်းများ\n"
+        f"{I.RAINBOW} <code>/mood</code> · Mood အလိုက် ရွေးမယ်\n"
+        f"{I.MIC} <code>/artists</code> · အဆိုတော်အလိုက် ရှာမယ်\n"
+        f"{I.GUITAR} <code>/genre</code> · Genre ရွေးမယ်\n"
+        f"{I.GLOBE} <code>/browse</code> · ဘာသာစကား / အမျိုးအစား ရွေးမယ်\n"
         f"{I.BRAIN} <code>/brain</code> · AI အခြေအနေ ကြည့်မယ်\n"
         f"{I.LINK} <code>/link</code> · Bot ရဲ့ t.me link ရယူမယ်\n"
+        f"{I.KEYBOARD} <code>/keyboard</code> · အောက်ခလုတ်တွေ ပြန်ဖွင့်မယ်\n"
         f"{I.STAR} <code>/start</code> · မီနူး ပြန်ဖွင့်မယ်\n"
         f"{I.SOFT_DIVIDER}\n"
+        f"{I.BULB} စာရိုက်တဲ့နေရာဘေးက <b>/ မီနူးခလုတ်</b> ကနေလည်း "
+        f"command တွေ ရွေးနိုင်ပါတယ်။\n"
         f"{I.BULB} စာလုံးပေါင်းမှားရင်၊ အဆိုတော်ကို တိုက်ရိုက်မသိရင်လည်း "
         f"AI က နားလည်အောင် ကြိုးစားပေးပါလိမ့်မယ်။\n"
         f"{provider_badge(provider)}"
@@ -288,4 +307,68 @@ def prompt_text(kind: str) -> str:
         f"အဆိုတော်အကြောင်း၊ သီချင်းအကြောင်း၊ ဒါမှမဟုတ် ကြိုက်တဲ့ mood လေး "
         f"ပြောပေးပါနော် ✨\n"
         f"<i>တိုက်ရိုက်မေးချင်ရင် /ai ကိုလည်း သုံးလို့ရပါတယ်။</i>"
+    )
+
+
+#: Headings for the inline category menus (buttons live in ``buttons.py``).
+MENU_TEXTS = {
+    "popular": (
+        f"{I.FIRE} <b>ပေါ်ပြူလာ သီချင်းများ</b> {I.CHART}\n"
+        f"{I.SOFT_DIVIDER}\n"
+        f"အခုတလော လူပြောအများဆုံး သီချင်းတွေပါ။ "
+        f"ကြိုက်တာလေး တစ်ချက်နှိပ်ပြီး ရှာလိုက်ပါနော် 🎧"
+    ),
+    "mood": (
+        f"{I.RAINBOW} <b>Mood ရွေးကြည့်ပါ</b>\n"
+        f"{I.SOFT_DIVIDER}\n"
+        f"အခုစိတ်ခံစားချက်နဲ့ ကိုက်မယ့် သီချင်းတွေကို "
+        f"တစ်ချက်နှိပ်ရုံနဲ့ ရှာပေးပါမယ် 🎶"
+    ),
+    "genre": (
+        f"{I.GUITAR} <b>Genre ရွေးကြည့်ပါ</b>\n"
+        f"{I.SOFT_DIVIDER}\n"
+        f"ကြိုက်နှစ်သက်တဲ့ အမျိုးအစားလေး ရွေးလိုက်ပါနော် 🎵"
+    ),
+    "artists": (
+        f"{I.MIC} <b>အဆိုတော်များ</b>\n"
+        f"{I.SOFT_DIVIDER}\n"
+        f"{I.FLAG_MM} မြန်မာ အဆိုတော် / {I.GLOBE} နိုင်ငံတကာ အဆိုတော် "
+        f"ကြိုက်ရာ ရွေးပြီး တစ်ချက်နှိပ်ရုံနဲ့ ရှာနိုင်ပါတယ် ✨"
+    ),
+    "artists_mm": (
+        f"{I.FLAG_MM} <b>မြန်မာ အဆိုတော်များ</b>\n"
+        f"{I.SOFT_DIVIDER}\n"
+        f"အဆိုတော်အမည် နှိပ်ရင် သီချင်းတွေ တန်းရှာပေးပါမယ် 🎧"
+    ),
+    "artists_int": (
+        f"{I.GLOBE} <b>International Artists</b>\n"
+        f"{I.SOFT_DIVIDER}\n"
+        f"အဆိုတော်အမည် နှိပ်ရင် သီချင်းတွေ တန်းရှာပေးပါမယ် 🎧"
+    ),
+    "browse": (
+        f"{I.GLOBE} <b>ဘာသာစကား & အမျိုးအစားများ</b>\n"
+        f"{I.SOFT_DIVIDER}\n"
+        f"မြန်မာ၊ အင်္ဂလိပ်၊ ထိုင်း… ကြိုက်တာ ရွေးလိုက်ပါနော် 🌈"
+    ),
+}
+
+
+def menu_text(category: str) -> str:
+    """Heading card shown above one category's inline buttons."""
+    return MENU_TEXTS.get(
+        category,
+        f"{I.FOLDER} <b>ရွေးကြည့်ပါ</b>\n{I.SOFT_DIVIDER}\nကြိုက်တာလေး နှိပ်လိုက်ပါနော် 🎵",
+    )
+
+
+def keyboard_text() -> str:
+    """Short card that (re)installs the persistent bottom reply keyboard."""
+    return (
+        f"{I.KEYBOARD} <b>အလွယ်ခလုတ်များ ဖွင့်ထားပါပြီ</b> {I.SPARKLES}\n"
+        f"{I.SOFT_DIVIDER}\n"
+        f"စာမရိုက်ချင်ရင် အောက်က ခလုတ်လေးတွေ နှိပ်ပြီး "
+        f"{I.SEARCH} သီချင်းရှာ၊ {I.FIRE} ပေါ်ပြူလာ၊ {I.RAINBOW} Mood၊ "
+        f"{I.MIC} အဆိုတော် ရွေးလို့ရပါတယ် {I.DOWN}\n"
+        f"<i>ခလုတ်တွေ ပျောက်သွားရင် /keyboard လို့ ရိုက်ပြီး ပြန်ဖွင့်နိုင်"
+        f"ပါတယ်။</i>"
     )
