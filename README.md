@@ -3,6 +3,8 @@
 Telegram music bot that **thinks** about what you type — songs, artists, moods or
 questions — then finds and sends the MP3. Burmese 🇲🇲 and English both work.
 
+[![Deploy to Render](https://render.com/images/deploy-to-render-button.svg)](https://render.com/deploy?repo=https://github.com/khm337832-boop/Goii-music-bot)
+
 > **TL;DR** — set `BOT_TOKEN`, run `python main.py`. It already works.
 > Add one free `AI_API_KEY` and it becomes a real AI that can reason about
 > artists and songs way beyond a fixed list.
@@ -173,13 +175,25 @@ does not offer a shareable `t.me/...` URL — `/link` explains how to get one.
 
 ## ☁️ Deploy on Render
 
-1. Push this branch and create a **Web Service** from the repo (or use the
-   included `render.yaml` as a Blueprint).
+**အမြန်ဆုံး (one-click):** click the **Deploy to Render** button at the top of
+this README → fill in `BOT_TOKEN` (from [@BotFather](https://t.me/BotFather))
+and `BOT_USERNAME` when asked → **Apply**. The included `render.yaml` Blueprint
+creates the free web service for you.
+
+Already have the service? It auto-deploys on every push to `main`
+(`autoDeploy: true`). To force it: Render dashboard → your service →
+**Manual Deploy → Deploy latest commit**.
+
+Manual setup instead:
+
+1. Create a **Web Service** from this repo (or use `render.yaml` as a Blueprint).
 2. Add `BOT_TOKEN` and `BOT_USERNAME` in **Environment** (`sync: false` in the
    YAML means Render will ask you for the values). The web URL shown in the
    Render dashboard is the keep-alive site, **not** the Telegram bot link.
 3. Optionally add `AI_PROVIDER=gemini` and `AI_API_KEY=...`.
-4. Deploy. `/health` returns `{"status":"ok", ...}` so the free service stays up.
+4. Deploy. `/health` returns `{"status":"ok", ...}` (the Blueprint points
+   Render's health check there) — then open your bot and tap `/start`; the
+   ⌨️ bottom buttons appear when the new build is live.
 
 > ⚠️ **Security:** an earlier version of `main.py` contained a bot token in
 > plain text. That token is public in Git history — **revoke it with

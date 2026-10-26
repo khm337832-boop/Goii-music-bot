@@ -3,6 +3,9 @@ services:
     name: Goli-music-bot
     runtime: python
     plan: free
+    branch: main
+    autoDeploy: true
+    healthCheckPath: /health
     buildCommand: pip install -r requirements.txt
     startCommand: python main.py
     envVars:
