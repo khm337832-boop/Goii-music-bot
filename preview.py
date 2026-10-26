@@ -1,7 +1,8 @@
-"""🎨 Design preview — see the bot's new icons/messages in your browser.
+"""🎨 Design preview — see the bot's icons/messages/buttons in your browser.
 
-This is a *dev tool only*: it renders the exact templates from ``icons.py`` as
-Telegram-like chat bubbles. It never connects to Telegram or downloads music.
+This is a *dev tool only*: it renders the exact templates from ``icons.py``
+and the button catalogue from ``buttons.py`` as Telegram-like chat bubbles.
+It never connects to Telegram or downloads music.
 
     pip install -r requirements.txt
     python preview.py            # http://localhost:8080
@@ -13,6 +14,7 @@ import os
 
 from flask import Flask
 
+from buttons import CATEGORIES, REPLY_ROWS
 from icons import (
     ai_answer_text,
     brain_status_text,
@@ -20,6 +22,8 @@ from icons import (
     download_text,
     error_text,
     help_text,
+    keyboard_text,
+    menu_text,
     no_results_text,
     prompt_text,
     recommend_text,
@@ -52,6 +56,16 @@ body{margin:0;padding:36px 16px 80px;background:radial-gradient(circle at 15% 0%
 .kb span{padding:8px 12px;border-radius:10px;background:#2b3350;border:1px solid rgba(255,255,255,.10);
  color:#cdd6ff;font-size:12px;cursor:default;flex:1 1 auto;text-align:center}
 .kb span:hover{background:#3a4570}
+.kbrows{display:flex;flex-direction:column;gap:7px;margin:-4px 0 12px}
+.kbrows .row{display:flex;gap:7px}
+.kbrows .row span{padding:8px 10px;border-radius:10px;background:#2b3350;
+ border:1px solid rgba(255,255,255,.10);color:#cdd6ff;font-size:12px;flex:1;text-align:center}
+.kbrows .row span:hover{background:#3a4570}
+.replykb{background:#141826;border:1px dashed rgba(160,180,255,.35);border-radius:14px;padding:10px;margin:-4px 0 12px}
+.replykb .row{display:flex;gap:7px;margin-bottom:7px}
+.replykb .row:last-child{margin-bottom:0}
+.replykb .row span{padding:10px 8px;border-radius:8px;background:#232a42;
+ color:#eef1ff;font-size:12.5px;flex:1;text-align:center;border-bottom:2px solid rgba(0,0,0,.35)}
 .note{font-size:11px;opacity:.4;margin:-8px 0 16px;text-align:right}
 """
 
@@ -64,6 +78,30 @@ def card(content: str, buttons: list[str] | None = None, me: bool = False, note:
     return f'<div class="{css}">{content}</div>{chips}<div class="note">{html.escape(note)}</div>'
 
 
+def card_rows(content: str, rows: list[list[str]], note: str = "", reply: bool = False) -> str:
+    """Bubble followed by a real row-by-row button grid (like Telegram)."""
+    klass = "replykb" if reply else "kbrows"
+    grid = "".join(
+        '<div class="row">' + "".join(f"<span>{html.escape(b)}</span>" for b in row) + "</div>"
+        for row in rows
+    )
+    return (
+        f'<div class="bubble">{content}</div><div class="{klass}">{grid}</div>'
+        f'<div class="note">{html.escape(note)}</div>'
+    )
+
+
+def category_rows(category: str) -> list[list[str]]:
+    """Button labels of one category, chunked 2-per-row like the real bot."""
+    items = CATEGORIES[category]
+    rows = [[item.label for item in items[i:i + 2]] for i in range(0, len(items), 2)]
+    if category in {"artists_mm", "artists_int"}:
+        rows.append(["🔙 အဆိုတော်မီနူး", "🏠 မီနူး"])
+    else:
+        rows.append(["🏠 မီနူး ပြန်သွားမယ်", "🔎 ကိုယ်တိုင်ရှာမယ်"])
+    return rows
+
+
 def page() -> str:
     parts: list[str] = ['<!doctype html><html lang="my"><head><meta charset="utf-8">',
                         '<meta name="viewport" content="width=device-width,initial-scale=1">',
@@ -71,16 +109,42 @@ def page() -> str:
                         f"<style>{STYLE}</style></head><body><div class='wrap'>"]
     parts.append(
         '<div class="head"><h1>🎧 Goii Music Bot ✨</h1>'
-        "<p>Icon &amp; message preview · rendered live from <code>icons.py</code><br>"
-        "Edit <code>class I</code> there to restyle everything at once.</p></div>"
+        "<p>Icon, message &amp; button preview · rendered live from <code>icons.py</code> + "
+        "<code>buttons.py</code><br>Edit those files to restyle everything at once.</p></div>"
     )
 
     parts.append('<div class="section">👋 Start menu</div>')
-    parts.append(card(
+    parts.append(card_rows(
         welcome_text(),
-        ["🔎 သီချင်းရှာမယ်", "🤖 AI ကို မေးမယ်", "ℹ️ အကူအညီ", "🧠 AI အခြေအနေ", "🔗 Bot link ပေးပါ"],
-        note="/start",
+        [["🔎 သီချင်းရှာမယ်", "🔥 ပေါ်ပြူလာ"],
+         ["🌈 Mood ရွေးမယ်", "🎤 အဆိုတော်များ"],
+         ["🎸 Genre", "🌍 ဘာသာစကား"],
+         ["🤖 AI ကို မေးမယ်", "ℹ️ အကူအညီ"],
+         ["🧠 AI အခြေအနေ", "🔗 Bot link ပေးပါ"],
+         ["⌨️ အောက်ခလုတ် ဖွင့်မယ်"],
+         ["📤 သူငယ်ချင်းတွေကို မျှဝေမယ်"]],
+        note="/start · inline main menu",
     ))
+
+    parts.append('<div class="section">⌨️ Bottom buttons · Reply keyboard</div>')
+    parts.append(card_rows(
+        keyboard_text(),
+        [list(row) for row in REPLY_ROWS],
+        note="always visible under the chat input · /keyboard restores it",
+        reply=True,
+    ))
+
+    parts.append('<div class="section">🗂️ Category button menus</div>')
+    parts.append(card_rows(
+        menu_text("artists"),
+        [["🇲🇲 မြန်မာ အဆိုတော်များ"], ["🌍 International Artists"], ["🔙 မီနူး ပြန်သွားမယ်"]],
+        note="/artists · hub",
+    ))
+    for category, note in (
+        ("popular", "/popular"), ("mood", "/mood"), ("genre", "/genre"),
+        ("artists_mm", "🇲🇲 artists"), ("artists_int", "🌍 artists"), ("browse", "/browse"),
+    ):
+        parts.append(card_rows(menu_text(category), category_rows(category), note=f"{note} · one tap = search"))
 
     parts.append('<div class="section">🔎 Search flow</div>')
     parts.append(card("Coldplay yellow ဖွင့်ပေးပါဗျ 🎵", me=True, note="user message"))
@@ -91,7 +155,7 @@ def page() -> str:
         [track_label(i, title, duration) for i, (title, duration) in enumerate([
             ("Yellow - Coldplay", 268), ("Viva La Vida", 242), ("Fix You", 295),
             ("Something Just Like This", 247), ("A Sky Full of Stars", 288),
-        ])] + ["🔄 နောက်ထပ် ရလဒ်များ", "🤖 ဒီအကြောင်း မေးမယ်"],
+        ])] + ["🔄 နောက်ထပ် ရလဒ်များ", "🤖 ဒီအကြောင်း မေးမယ်", "🔥 ပေါ်ပြူလာ", "🏠 မီနူး"],
         note="results · numbered icon rows",
     ))
     parts.append(card(no_results_text("unknown xyz song", "local"), ["🔙 မီနူး ပြန်သွားမယ်"], note="no results"))
@@ -99,9 +163,12 @@ def page() -> str:
     parts.append('<div class="section">📥 Download & audio card</div>')
     for stage in range(3):
         parts.append(card(download_text(stage), note=f"stage {stage + 1}"))
-    parts.append(card(
+    parts.append(card_rows(
         caption_text("Yellow", "Coldplay", 268),
-        ["▶️ Play"], note="audio caption",
+        [["🔄 ဒီလို နောက်တစ်ပုဒ်", "🔎 အသစ်ရှာမယ်"],
+         ["🔥 ပေါ်ပြူလာ", "🌈 Mood"],
+         ["🏠 မီနူး ပြန်သွားမယ်"]],
+        note="audio caption · buttons under every MP3",
     ))
     parts.append(card(error_text("download"), note="friendly error"))
 

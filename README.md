@@ -17,6 +17,7 @@ questions — then finds and sends the MP3. Burmese 🇲🇲 and English both wo
 | Only exact / literal strings worked | Handles typos, Burmese, romanized Burmese, moods, lyric fragments, "that song by…", follow-up messages |
 | Could not answer questions about artists | `info` / `chat` intent answers with real knowledge (cloud AI), or an honest local reply |
 | Plain `🎵 title...` buttons, raw `**` markdown | A consistent **icon system** (`icons.py`), numbered result buttons, HTML formatting, menus, status cards |
+| Typing was the only way to browse | **Buttons everywhere** (`buttons.py`): ⌨️ persistent bottom keyboard, 🌈 mood / 🎸 genre / 🎤 artist / 🌍 language / 🔥 popular one-tap menus, a 📋 command-menu button, and action buttons under every MP3 |
 | Bot token hard-coded in `main.py` | Token read from `BOT_TOKEN` env var / `.env` |
 | Temp files leaked on errors | Always cleaned up, concurrency limited to protect free-tier RAM |
 
@@ -101,16 +102,36 @@ retired model automatically falls through to the next one.
 
 | Command | What it does |
 | --- | --- |
-| `/start` | Welcome card + main menu |
+| `/start` | Welcome card + main menu + bottom keyboard |
 | plain text | AI decides: search, recommend, info or chat |
 | `/ai <question>` | Force an AI answer (great for artist questions) |
 | `/search <name>` | Fast direct search, no LLM round-trip |
+| `/popular` | 🔥 Trending / Top Hits / TikTok Viral / 🇲🇲 ပေါက်သီချင်း buttons |
+| `/mood` | 🌈 Mood buttons — happy, sad, love, chill, party, workout, rain, sleep |
+| `/artists` | 🎤 Artist buttons — 🇲🇲 Myanmar artists & 🌍 international |
+| `/genre` | 🎸 Genre buttons — Pop, Rock, Hip-Hop, Lo-fi, EDM, Acoustic, R&B, K-Pop |
+| `/browse` | 🌍 Browse by language — မြန်မာ, English, ထိုင်း, Bollywood, Oldies… |
+| `/keyboard` | ⌨️ Show the persistent bottom button keyboard again |
 | `/brain` | Shows which AI engine is active |
 | `/link` | Shows the public `https://t.me/...` bot link |
-| `/help` | Command list |
+| `/menu`, `/help` | Main menu / command list |
 
-Inline menus: 🔎 search, 🤖 ask AI, 🧠 AI status, ℹ️ help, 🔄 more results,
-🔙 back. Result rows are numbered `1️⃣…5️⃣` with a duration badge.
+**Buttons everywhere** (all labels live in `buttons.py` — edit one file to
+restyle them all):
+
+- **⌨️ Bottom reply keyboard** — always visible under the chat input:
+  🔎 သီချင်းရှာမယ် · 🔥 ပေါ်ပြူလာ · 🌈 Mood · 🎤 အဆိုတော်များ · 🎸 Genre ·
+  🌍 ဘာသာစကား · 🤖 AI · ℹ️ အကူအညီ · 🏠 မူလမီနူး. No typing needed; taps are
+  routed instantly without an AI round-trip.
+- **Inline category menus** — one tap on a mood / genre / artist / language
+  button immediately searches and shows numbered results.
+- **📋 Command menu button** — `/start`, `/mood`, … are registered with
+  `set_my_commands`, so they appear in the "/" menu next to the input box.
+- **Under every MP3** — 🔄 next similar song, 🔎 new search, 🔥 popular,
+  🌈 mood, 🏠 menu.
+- **Share button** — 📤 forwards the bot link to friends (needs `BOT_USERNAME`).
+
+Result rows are numbered `1️⃣…5️⃣` with a duration badge.
 
 ---
 
@@ -182,13 +203,15 @@ python preview.py      # http://localhost:8080
 ```
 
 It renders the real message templates as Telegram-like chat bubbles — welcome
-menu, thinking state, numbered result buttons, download stages, audio caption,
+menu, the ⌨️ bottom keyboard, every category button menu, thinking state,
+numbered result buttons, download stages, the audio card with its buttons,
 recommendations, AI answers and error cards.
 
 Files:
 
 ```
 main.py        Telegram handlers, menus, routing, download flow
+buttons.py     every button label/menu (bottom keyboard, categories, commands)
 ai_brain.py    LLM client + local reasoning engine
 music.py       yt-dlp search / MP3 download / cleanup
 icons.py       icon palette + all message templates
