@@ -6,8 +6,26 @@ services:
     buildCommand: pip install -r requirements.txt
     startCommand: python main.py
     envVars:
+      # Telegram bot token (from @BotFather). NEVER put it in main.py.
       - key: BOT_TOKEN
         sync: false
+      # @username from @BotFather -> makes the public https://t.me/... link
+      - key: BOT_USERNAME
+        sync: false
+      # Optional: turn the bot into a real reasoning AI.
+      # AI_PROVIDER = auto | gemini | groq | openai | openrouter | local
+      - key: AI_PROVIDER
+        sync: false
+      - key: AI_API_KEY
+        sync: false
+      - key: AI_MODEL
+        sync: false
+      - key: AI_BASE_URL
+        sync: false
+      - key: MAX_SEARCH_RESULTS
+        value: "5"
+      - key: PYTHON_VERSION
+        value: "3.11.9"
     buildpacks:
       - url: https://github.com/jonathanong/heroku-buildpack-ffmpeg-latest.git
       - url: render/python
